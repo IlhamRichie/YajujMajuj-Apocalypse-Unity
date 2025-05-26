@@ -15,8 +15,11 @@ public class PlayerMovement : MonoBehaviour
     private SpriteRenderer sprite;
     private PlayerController playerController; // tambahkan PlayerInputActions
 
+    // Untuk input dari button UI
+    private float mobileInputX = 0f;
+
     private Vector2 moveInput;
-    private bool isJump = false;
+    private bool isJumping = false;
 
     private enum MovementState { idle, walk, jump, fall, run}
 
@@ -53,28 +56,49 @@ public class PlayerMovement : MonoBehaviour
 
     private void Update()
     {
-        moveInput = playerController.Movement.Move.ReadValue<Vector2>();
+        // Jika menggunakan mobile input, pakai itu
+        if (Application.isMobilePlatform)
+        {
+            moveInput = new Vector2(mobileInputX, 0f);
+        }
+        else
+        {
+            // Kalau bukan mobile, pakai Input System
+            moveInput = playerController.Movement.Move.ReadValue<Vector2>();
+        }
 
     }
 
     private void FixedUpdate()
     {
-        //float speed = isRunning ? runSpeed : moveSpeed;
-        Vector2 targetVelocity = new Vector2(moveInput.x * moveSpeed, rb.velocity.y);
+        //gabungan mobile
+        Vector2 targetVelocity = new Vector2((moveInput.x + mobileInputX) * moveSpeed, rb.velocity.y);
         rb.velocity = targetVelocity;
+
         UpdateAnimation();
+
+        // Reset isJumping hanya saat grounded dan velocity Y mendekati 0
+        if (isGrounded() && Mathf.Abs(rb.velocity.y) < 0.01f)
+        {
+            isJumping = false;
+        }
+
     }
 
     private void UpdateAnimation()
     {
         MovementState state;
 
-        if (moveInput.x > 0f)
+        // Gabungkan input dari keyboard dan mobile
+        float horizontal = moveInput.x != 0 ? moveInput.x : mobileInputX;
+
+        // Cek arah jalan
+        if (horizontal > 0f)
         {
             state = MovementState.walk;
             sprite.flipX = false;
         }
-        else if (moveInput.x < 0f)
+        else if (horizontal < 0f)
         {
             state = MovementState.walk;
             sprite.flipX = true;
@@ -84,6 +108,7 @@ public class PlayerMovement : MonoBehaviour
             state = MovementState.idle;
         }
 
+        // Cek apakah sedang lompat atau jatuh
         if (rb.velocity.y > 0.1f)
         {
             state = MovementState.jump;
@@ -93,8 +118,9 @@ public class PlayerMovement : MonoBehaviour
             state = MovementState.fall;
         }
 
-        anim.SetInteger("State", (int)state);
+        anim.SetInteger("state", (int)state);
     }
+
 
     private bool isGrounded()
     {
@@ -103,9 +129,37 @@ public class PlayerMovement : MonoBehaviour
 
     private void Jump()
     {
+        // Cek ulang grounded saat ini, dan jangan gunakan isJumping (karena bisa delay)
         if (isGrounded())
         {
             rb.velocity = new Vector2(rb.velocity.x, jumpForce);
+            isJumping = true;
+        }
+    }
+
+    // Fungsi ini dipanggil saat tombol kanan ditekan
+    public void MoveRight(bool isPressed)
+    {
+        if (isPressed)
+            mobileInputX = 1f;
+        else if (mobileInputX == 1f)
+            mobileInputX = 0f;
+    }
+
+    public void MoveLeft(bool isPressed)
+    {
+        if (isPressed)
+            mobileInputX = -1f;
+        else if (mobileInputX == -1f)
+            mobileInputX = 0f;
+    }
+
+    // Fungsi ini dipanggil saat tombol lompat ditekan
+    public void MobileJump()
+    {
+        if (isGrounded())
+        {
+            Jump();
         }
     }
 }

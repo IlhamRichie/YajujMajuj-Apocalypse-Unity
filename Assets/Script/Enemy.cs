@@ -7,26 +7,28 @@ public class Enemy : MonoBehaviour
     private int currentHealth;
 
     [Header("Movement & Chase")]
-    public float chaseSpeed = 2.0f; // Kecepatan musuh saat mengejar
-    public float detectionRange = 5f; // Jarak musuh bisa mendeteksi pemain
-    public LayerMask playerLayer;     // Layer tempat pemain berada (untuk deteksi yang lebih spesifik)
-    private Transform playerTransform; // Untuk menyimpan posisi pemain
-    private Rigidbody2D rb;
-    private Vector2 originalScale; // Untuk menyimpan skala awal (jika sprite perlu di-flip)
+    public float chaseSpeed = 2.0f;
+    public float detectionRange = 5f;
+    // public LayerMask playerLayer; // Masih bisa dipakai jika ingin deteksi lebih spesifik
 
-    // (Opsional) Untuk efek visual sederhana saat terkena serangan
-    // public SpriteRenderer spriteRenderer;
-    // public Color hitColor = Color.red;
-    // private Color originalColor;
-    // public float hitEffectDuration = 0.1f;
+    [Header("Attack")]
+    public float attackRange = 1.5f;   // Jarak musuh bisa menyerang (lebih pendek dari detectionRange)
+    public int attackDamage = 1;       // Damage serangan musuh
+    public float attackCooldown = 2f;  // Waktu jeda antar serangan musuh (dalam detik)
+    private float lastAttackTime = -Mathf.Infinity; // Waktu terakhir musuh menyerang, diinisialisasi agar bisa langsung attack
+
+    private Transform playerTransform;
+    private Rigidbody2D rb;
+    private Vector2 originalScale;
+    // private Animator enemyAnim; // Kita akan uncomment ini jika nanti pakai animasi
 
     void Start()
     {
         currentHealth = maxHealth;
-        rb = GetComponent<Rigidbody2D>(); // Ambil komponen Rigidbody2D
-        originalScale = transform.localScale; // Simpan skala awal
+        rb = GetComponent<Rigidbody2D>();
+        originalScale = transform.localScale;
+        // enemyAnim = GetComponent<Animator>(); // Jika ada Animator
 
-        // Cari GameObject pemain berdasarkan Tag "Player"
         GameObject playerObject = GameObject.FindGameObjectWithTag("Player");
         if (playerObject != null)
         {
@@ -34,96 +36,111 @@ public class Enemy : MonoBehaviour
         }
         else
         {
-            Debug.LogError("Pemain dengan tag 'Player' tidak ditemukan! Musuh tidak akan bisa mengejar.");
+            Debug.LogError("Pemain dengan tag 'Player' tidak ditemukan! Musuh tidak akan bisa mengejar atau menyerang.");
         }
-
-        // if (spriteRenderer == null)
-        // {
-        //     spriteRenderer = GetComponent<SpriteRenderer>();
-        // }
-        // if (spriteRenderer != null)
-        // {
-        //     originalColor = spriteRenderer.color;
-        // }
+        lastAttackTime = -attackCooldown; // Agar musuh bisa langsung menyerang saat pertama kali bertemu
     }
 
     void Update()
     {
-        // Hanya lakukan pengejaran jika pemain sudah ditemukan
-        if (playerTransform != null)
+        if (playerTransform == null) return; // Jangan lakukan apa-apa jika tidak ada pemain
+
+        float distanceToPlayer = Vector2.Distance(transform.position, playerTransform.position);
+
+        if (distanceToPlayer <= detectionRange) // Jika pemain dalam jangkauan deteksi
         {
-            // Hitung jarak ke pemain
-            float distanceToPlayer = Vector2.Distance(transform.position, playerTransform.position);
+            // Selalu hadap pemain jika dalam jangkauan deteksi
+            Vector2 directionToPlayer = (playerTransform.position - transform.position).normalized;
+            FlipSprite(directionToPlayer.x);
 
-            // Jika pemain dalam jangkauan deteksi
-            if (distanceToPlayer <= detectionRange)
+            if (distanceToPlayer <= attackRange) // Jika pemain dalam jangkauan SERANG
             {
-                // Tentukan arah ke pemain
-                Vector2 directionToPlayer = (playerTransform.position - transform.position).normalized;
-
-                // Gerakkan musuh menuju pemain menggunakan Rigidbody2D (cocok untuk Rigidbody Kinematic)
-                rb.MovePosition((Vector2)transform.position + (directionToPlayer * chaseSpeed * Time.deltaTime));
-
-                // Balikkan sprite musuh agar menghadap pemain
-                FlipSprite(directionToPlayer.x);
+                // Berhenti bergerak dan coba serang
+                // (Untuk Rigidbody Kinematic, berhenti bisa dengan tidak memanggil MovePosition)
+                AttemptAttack();
             }
-            // else
-            // {
-            //     // Opsional: Jika pemain di luar jangkauan, musuh bisa berhenti atau patroli
-            //     // Untuk sekarang, biarkan dia berhenti jika tidak ada logika patroli
-            //     // rb.velocity = Vector2.zero; // Jika menggunakan Rigidbody Dynamic
-            // }
+            else // Jika pemain dalam jangkauan deteksi TAPI di luar jangkauan serang
+            {
+                // Kejar pemain
+                // if (enemyAnim != null) enemyAnim.SetBool("IsMoving", true); // Jika ada animasi jalan
+                rb.MovePosition((Vector2)transform.position + (directionToPlayer * chaseSpeed * Time.deltaTime));
+            }
         }
+        // else // Jika pemain di luar jangkauan deteksi
+        // {
+        //     // if (enemyAnim != null) enemyAnim.SetBool("IsMoving", false); // Jika ada animasi idle
+        //     // Berhenti atau patroli (jika ada logika patroli)
+        // }
     }
 
     void FlipSprite(float horizontalDirection)
     {
-        if (horizontalDirection > 0) // Jika bergerak ke kanan
+        if (horizontalDirection > 0)
         {
-            transform.localScale = new Vector2(originalScale.x, originalScale.y); // Arah normal (misal, sprite default hadap kanan)
+            transform.localScale = new Vector2(originalScale.x, originalScale.y);
         }
-        else if (horizontalDirection < 0) // Jika bergerak ke kiri
+        else if (horizontalDirection < 0)
         {
-            transform.localScale = new Vector2(-originalScale.x, originalScale.y); // Balik sumbu X
+            transform.localScale = new Vector2(-originalScale.x, originalScale.y);
         }
-        // Jika horizontalDirection == 0, biarkan arah terakhir
+    }
+
+    void AttemptAttack()
+    {
+        if (Time.time >= lastAttackTime + attackCooldown) // Cek apakah cooldown sudah selesai
+        {
+            lastAttackTime = Time.time; // Catat waktu serangan terakhir
+            Debug.Log(gameObject.name + " mencoba menyerang pemain!");
+
+            // TODO: Nanti di sini kita bisa trigger animasi serangan musuh
+            // if (enemyAnim != null) enemyAnim.SetTrigger("AttackTrigger");
+            // else PerformDirectDamageToPlayer(); // Jika tidak ada animasi, langsung deal damage
+
+            PerformDirectDamageToPlayer(); // Untuk sekarang, langsung deal damage
+        }
+    }
+
+    // Fungsi ini akan memberikan damage ke pemain secara langsung
+    void PerformDirectDamageToPlayer()
+    {
+        // Pastikan pemain masih dalam jangkauan saat damage diberikan (bisa saja pemain kabur sedikit)
+        if (playerTransform != null && Vector2.Distance(transform.position, playerTransform.position) <= attackRange)
+        {
+            PlayerHealth playerHealth = playerTransform.GetComponent<PlayerHealth>();
+            if (playerHealth != null)
+            {
+                Debug.Log(gameObject.name + " memberikan " + attackDamage + " damage ke pemain.");
+                playerHealth.TakeDamage(attackDamage);
+            }
+        }
     }
 
     public void TakeDamage(int damageAmount)
     {
+        // ... (kode TakeDamage musuh yang sudah ada)
         currentHealth -= damageAmount;
         Debug.Log(gameObject.name + " terkena damage: " + damageAmount + ", Sisa health: " + currentHealth);
-
-        // (Opsional) Efek visual sederhana saat terkena serangan
-        // StartCoroutine(HitEffect());
-
         if (currentHealth <= 0)
         {
             Die();
         }
     }
 
-    // (Opsional) Coroutine untuk efek visual
-    // System.Collections.IEnumerator HitEffect()
-    // {
-    //     if (spriteRenderer != null)
-    //     {
-    //         spriteRenderer.color = hitColor;
-    //         yield return new WaitForSeconds(hitEffectDuration);
-    //         spriteRenderer.color = originalColor;
-    //     }
-    // }
-
     void Die()
     {
+        // ... (kode Die musuh yang sudah ada)
         Debug.Log(gameObject.name + " mati!");
         Destroy(gameObject);
     }
 
-    // (Opsional) Untuk visualisasi jangkauan deteksi di Editor
     void OnDrawGizmosSelected()
     {
+        // ... (kode OnDrawGizmosSelected yang sudah ada untuk detectionRange)
         Gizmos.color = Color.yellow;
         Gizmos.DrawWireSphere(transform.position, detectionRange);
+
+        // Tambahkan Gizmos untuk attackRange
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireSphere(transform.position, attackRange);
     }
 }

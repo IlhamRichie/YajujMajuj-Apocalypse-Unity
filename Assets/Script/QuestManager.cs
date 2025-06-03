@@ -1,5 +1,7 @@
 using UnityEngine;
 using TMPro; // Jangan lupa tambahkan ini jika menggunakan TextMeshPro
+using UnityEngine.SceneManagement; // Untuk mengakses fungsi manajemen scene
+
 
 public class QuestManager : MonoBehaviour
 {
@@ -65,13 +67,21 @@ public class QuestManager : MonoBehaviour
     void CompleteQuest()
     {
         Debug.Log("SELAMAT! Semua manuskrip telah ditemukan!");
+
+        // Tampilkan UI pesan quest selesai jika ada, atau lakukan aksi lain
         // if (questCompleteMessagePanel != null)
         //     questCompleteMessagePanel.SetActive(true);
         if (questProgressText != null)
-            questProgressText.text = "Quest Selesai! Semua manuskrip ditemukan. Segera ke portal Tembok Reruntuhan dan lanjutkan ke level berikutnya";
+            questProgressText.text = "Quest Selesai! Semua manuskrip ditemukan.";
 
-        // Logika lain setelah quest selesai (misalnya beri hadiah, buka pintu, dll.)
+        // Tunggu beberapa saat sebelum pindah scene agar pemain bisa baca pesan (opsional)
+        // StartCoroutine(DelayedSceneLoad("NamaSceneWinKamu", 3f)); // Contoh delay 3 detik
+
+        // Atau langsung pindah ke scene "Win"
+        // GANTI "NamaSceneWinKamu" dengan nama file scene Win-mu yang sebenarnya (case-sensitive!)
+        SceneManager.LoadScene("Win");
     }
+
 
     // Fungsi ini bisa dipanggil oleh tombol "Tutup" di UI Panel nanti
     public void CloseAyatDisplayPanel()

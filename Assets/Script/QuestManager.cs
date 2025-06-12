@@ -16,7 +16,8 @@ public class QuestManager : MonoBehaviour
 
     // (Opsional) Untuk pesan setelah quest selesai
     // public GameObject questCompleteMessagePanel;
-
+    [Header("Quest Objective")]
+    public GateController gateController; // Drag objek GerbangLevel ke sini
     void Start()
     {
         // Nonaktifkan panel display dan pesan selesai di awal
@@ -66,20 +67,26 @@ public class QuestManager : MonoBehaviour
 
     void CompleteQuest()
     {
-        Debug.Log("SELAMAT! Semua manuskrip telah ditemukan!");
+        Debug.Log("QUEST SELESAI! Sekarang temukan gerbang!");
 
-        // Tampilkan UI pesan quest selesai jika ada, atau lakukan aksi lain
-        // if (questCompleteMessagePanel != null)
-        //     questCompleteMessagePanel.SetActive(true);
+        // 1. Buka gerbang jika sudah di-assign
+        if (gateController != null)
+        {
+            gateController.OpenGate();
+        }
+        else
+        {
+            Debug.LogError("Referensi GateController belum di-assign di QuestManager!");
+        }
+
+        // 2. Update teks UI dengan instruksi baru
         if (questProgressText != null)
-            questProgressText.text = "Quest Selesai! Semua manuskrip ditemukan.";
+        {
+            questProgressText.text = "Semua manuskrip ditemukan! Sekarang masuki gerbang...";
+        }
 
-        // Tunggu beberapa saat sebelum pindah scene agar pemain bisa baca pesan (opsional)
-        // StartCoroutine(DelayedSceneLoad("NamaSceneWinKamu", 3f)); // Contoh delay 3 detik
-
-        // Atau langsung pindah ke scene "Win"
-        // GANTI "NamaSceneWinKamu" dengan nama file scene Win-mu yang sebenarnya (case-sensitive!)
-        SceneManager.LoadScene("Win");
+        // HAPUS atau komentari baris yang langsung pindah scene WIN
+        // SceneManager.LoadScene("NamaSceneWinKamu"); 
     }
 
 

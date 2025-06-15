@@ -14,11 +14,15 @@ public class GateController : MonoBehaviour
     private SpriteRenderer spriteRenderer;
     private Collider2D gateCollider;
 
+    private AudioSource audioSource; 
+
     void Start()
     {
         // Ambil komponen yang dibutuhkan
         spriteRenderer = GetComponent<SpriteRenderer>();
         gateCollider = GetComponent<Collider2D>();
+
+        audioSource = GetComponent<AudioSource>();
 
         // Pastikan gerbang dalam keadaan tertutup di awal
         spriteRenderer.sprite = gateClosedSprite;
@@ -32,10 +36,14 @@ public class GateController : MonoBehaviour
         {
             Debug.Log("Gerbang telah terbuka!");
             isOpen = true;
-            spriteRenderer.sprite = gateOpenSprite; // Ganti gambar menjadi gerbang terbuka
-            gateCollider.enabled = true; // Aktifkan collider trigger
+            spriteRenderer.sprite = gateOpenSprite;
+            gateCollider.enabled = true;
 
-            // Opsional: Tambahkan efek suara atau partikel saat gerbang terbuka
+            // Mainkan suara saat gerbang terbuka
+            if (audioSource != null)
+            {
+                audioSource.Play();
+            }
         }
     }
 

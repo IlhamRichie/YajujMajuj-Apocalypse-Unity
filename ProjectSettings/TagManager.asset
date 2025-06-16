@@ -6,6 +6,7 @@ TagManager:
   tags:
   - Manuscript
   - Enemy
+  - KunciBatu
   layers:
   - Default
   - TransparentFX

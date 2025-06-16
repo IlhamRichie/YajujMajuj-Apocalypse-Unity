@@ -334,13 +334,17 @@ public class Enemy : MonoBehaviour
         Debug.Log(gameObject.name + " mati!");
         // TriggerAnimation("Die");
 
-        // Sembunyikan health bar sebelum hancur (jika Canvas tidak otomatis hancur bersama parent)
-        // Namun, karena EnemyHealthCanvas adalah child, ia akan hancur bersama musuh.
-        // Jadi, baris di bawah ini biasanya tidak wajib kecuali ada kasus khusus.
-        // if (enemyHealthBarFill != null && enemyHealthBarFill.canvas != null)
-        // {
-        //     enemyHealthBarFill.canvas.gameObject.SetActive(false);
-        // }
+        // --- TAMBAHAN UNTUK MELAPOR KE QUEST MANAGER ---
+        QuestManager questManager = FindObjectOfType<QuestManager>();
+        if (questManager != null)
+        {
+            questManager.EnemyKilled();
+        }
+        else
+        {
+            Debug.LogWarning("QuestManager tidak ditemukan di scene. Kill tidak tercatat.");
+        }
+        // --- AKHIR TAMBAHAN ---
 
         Destroy(gameObject);
     }

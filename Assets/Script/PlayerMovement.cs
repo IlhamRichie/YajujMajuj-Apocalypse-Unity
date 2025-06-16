@@ -1,7 +1,8 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+
+// Tidak perlu 'using System.Collections.Generic;' jika tidak digunakan
+// Tidak perlu 'using System.Collections;' jika tidak ada Coroutine di sini
 
 public class PlayerMovement : MonoBehaviour
 {
@@ -10,41 +11,34 @@ public class PlayerMovement : MonoBehaviour
     public float runSpeed = 8f;
     public float jumpForce = 10f;
 
-    private Rigidbody2D rb;
-    private Animator anim;
-    private SpriteRenderer sprite;
-    private PlayerController playerController; // tambahkan PlayerInputActions
-
-    // Untuk input dari button UI
-    private float mobileInputX = 0f;
-
-    private Vector2 moveInput;
-    private bool isJumping = false;
-
-    private enum MovementState { idle, walk, jump, fall, run }
+    [Header("Attack Settings")]
+    public Transform attackPoint;
+    public float attackRange = 0.5f;
+    public int attackDamage = 1;
+    public LayerMask enemyLayers;
 
     [Header("Jump Settings")]
     [SerializeField] private LayerMask jumpableGround;
+    
+    [Header("Quest Interaction")]
+    public QuestManager questManager;
+
+    // Komponen & Variabel Internal
+    private Rigidbody2D rb;
+    private Animator anim;
     private BoxCollider2D coll;
-
-    // Variabel untuk interaksi
+    private PlayerController playerController;
+    private Vector2 moveInput;
+    private float mobileInputX = 0f;
     private GameObject currentInteractable = null;
-    public QuestManager questManager; // Akan kita isi nanti lewat Inspector
 
-
-    [Header("Attack Settings")]
-    public Transform attackPoint; // Drag GameObject AttackPoint ke sini
-    public float attackRange = 0.5f; // Jangkauan serangan dari attackPoint
-    public int attackDamage = 1;     // Damage serangan pemain
-    public LayerMask enemyLayers;    // Layer mana saja yang dianggap musuh
+    private enum MovementState { idle, walk, run, jump, fall }
 
     private void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
-        anim = GetComponent<Animator>(); // Penting!
-        sprite = GetComponent<SpriteRenderer>();
+        anim = GetComponent<Animator>();
         coll = GetComponent<BoxCollider2D>();
-
         playerController = new PlayerController();
     }
 
@@ -52,282 +46,135 @@ public class PlayerMovement : MonoBehaviour
     {
         playerController.Enable();
 
-        playerController.Movement.Move.performed += ctx => moveInput = ctx.ReadValue<Vector2>();
-        playerController.Movement.Move.canceled += ctx => moveInput = Vector2.zero;
-
-        playerController.Movement.Jump.performed += ctx => Jump();
-
-        playerController.Movement.Attack.performed += ctx => PerformAttack(); // Asumsi action 'Attack' ada di map 'Movement'
-        playerController.Movement.Interact.performed += ctx => HandleContextualAction();
+        // Subscribe ke semua event input
+        playerController.Movement.Move.performed += OnMoveInput;
+        playerController.Movement.Move.canceled += OnMoveInput;
+        playerController.Movement.Jump.performed += OnJumpPerformed;
+        playerController.Movement.Interact.performed += OnInteractPerformed;
     }
 
     private void OnDisable()
     {
         playerController.Disable();
-        playerController.Movement.Attack.performed -= ctx => PerformAttack();
-        playerController.Movement.Interact.performed -= ctx => HandleContextualAction();
 
+        // Unsubscribe dari semua event
+        playerController.Movement.Move.performed -= OnMoveInput;
+        playerController.Movement.Move.canceled -= OnMoveInput;
+        playerController.Movement.Jump.performed -= OnJumpPerformed;
+        playerController.Movement.Interact.performed -= OnInteractPerformed;
     }
 
+    // --- Event Handler Functions ---
+    private void OnMoveInput(InputAction.CallbackContext context)
+    {
+        // Hanya proses input ini jika BUKAN dari platform mobile atau remote
+        // Ini untuk mencegah keyboard menimpa input tombol UI saat testing
+        if (!(Application.isMobilePlatform || UnityEditor.EditorApplication.isRemoteConnected))
+        {
+            moveInput = context.ReadValue<Vector2>();
+        }
+    }
+
+    private void OnJumpPerformed(InputAction.CallbackContext context) => Jump();
+    private void OnInteractPerformed(InputAction.CallbackContext context) => HandleContextualAction();
+    
     private void Update()
     {
-        if (Application.isMobilePlatform || UnityEditor.EditorApplication.isRemoteConnected) // Cek juga untuk Unity Remote
+        // Hanya proses input mobile jika DI platform mobile atau remote
+        if (Application.isMobilePlatform || UnityEditor.EditorApplication.isRemoteConnected)
         {
-            // Jika di mobile atau menggunakan Unity Remote, gunakan mobileInputX
-            moveInput = new Vector2(mobileInputX, 0f);
+            // Set moveInput.x dari variabel yang diubah oleh tombol UI
+            moveInput.x = mobileInputX;
         }
-        else
-        {
-            // Jika bukan mobile (misalnya di Editor tanpa Remote atau build PC), pakai Input System Keyboard
-            if (playerController != null && playerController.asset.enabled) // Pastikan playerController aktif
-            {
-                moveInput = playerController.Movement.Move.ReadValue<Vector2>();
-            }
-            else
-            {
-                moveInput = Vector2.zero; // Default jika input system tidak aktif
-            }
-        }
-        // Fungsi UpdateAnimation akan menggunakan moveInput.x untuk animasi jalan/idle
-        // dan juga untuk membalik sprite.
     }
-
 
     private void FixedUpdate()
     {
-        // Pastikan bug input ganda sudah diperbaiki
-        // Kecepatan sekarang seharusnya hanya dikontrol oleh moveInput.x
-        float currentSpeed = moveSpeed; // Nanti bisa ditambahkan logika untuk runSpeed jika ada
-        rb.velocity = new Vector2(moveInput.x * currentSpeed, rb.velocity.y);
+        float currentSpeed = moveSpeed;
+        Vector2 newVelocity = new Vector2(moveInput.x * currentSpeed, rb.velocity.y);
+        rb.velocity = newVelocity;
 
-        UpdateAnimation(); // Ini akan membalik sprite dan set animasi berdasarkan moveInput.x dan rb.velocity.y
-
-        if (isGrounded() && Mathf.Abs(rb.velocity.y) < 0.01f)
+        // Hanya log jika ada input untuk menghindari spam
+        if (moveInput.x != 0)
         {
-            isJumping = false;
+            Debug.Log("LOG C: FixedUpdate() mengatur velocity.x menjadi = " + newVelocity.x);
         }
+
+        UpdateAnimationAndFlip();
     }
 
-
-    private void UpdateAnimation()
+    private void UpdateAnimationAndFlip()
     {
-        MovementState state;
-
-        // Gabungkan input dari keyboard dan mobile
-        float horizontal = moveInput.x != 0 ? moveInput.x : mobileInputX;
-
-        // Cek arah jalan
-        if (horizontal > 0f)
+        // Logika Flip menggunakan transform.localScale
+        if (moveInput.x > 0.01f)
         {
-            state = MovementState.walk;
-            sprite.flipX = false;
+            transform.localScale = new Vector3(Mathf.Abs(transform.localScale.x), transform.localScale.y, transform.localScale.z);
         }
-        else if (horizontal < 0f)
+        else if (moveInput.x < -0.01f)
+        {
+            transform.localScale = new Vector3(-Mathf.Abs(transform.localScale.x), transform.localScale.y, transform.localScale.z);
+        }
+
+        // Logika state animasi
+        MovementState state;
+        if (rb.velocity.y > 0.1f)
+        {
+            state = MovementState.jump;
+        }
+        else if (rb.velocity.y < -0.1f && !isGrounded())
+        {
+            state = MovementState.fall;
+        }
+        else if (Mathf.Abs(moveInput.x) > 0.01f)
         {
             state = MovementState.walk;
-            sprite.flipX = true;
         }
         else
         {
             state = MovementState.idle;
         }
 
-        // Cek apakah sedang lompat atau jatuh
-        if (rb.velocity.y > 0.1f)
-        {
-            state = MovementState.jump;
-        }
-        else if (rb.velocity.y < -0.1f)
-        {
-            state = MovementState.fall;
-        }
-
-        anim.SetInteger("state", (int)state);
+        if (anim != null) anim.SetInteger("state", (int)state);
     }
-
-
-    private bool isGrounded()
-    {
-        return Physics2D.BoxCast(coll.bounds.center, coll.bounds.size, 0f, Vector2.down, .1f, jumpableGround);
-    }
-
-    private void Jump()
-    {
-        // Cek ulang grounded saat ini, dan jangan gunakan isJumping (karena bisa delay)
-        if (isGrounded())
-        {
-            rb.velocity = new Vector2(rb.velocity.x, jumpForce);
-            isJumping = true;
-        }
-    }
-
-    // Fungsi ini dipanggil saat tombol kanan ditekan
-    public void MoveRight(bool isPressed)
-    {
-        if (isPressed)
-            mobileInputX = 1f;
-        else if (mobileInputX == 1f)
-            mobileInputX = 0f;
-    }
-
-    public void MoveLeft(bool isPressed)
-    {
-        if (isPressed)
-            mobileInputX = -1f;
-        else if (mobileInputX == -1f)
-            mobileInputX = 0f;
-    }
-
-    public void PerformMobileContextualAction()
-    {
-        HandleContextualAction(); // Panggil fungsi HandleContextualAction yang sudah ada
-    }
-
-
-    // Fungsi ini dipanggil saat tombol lompat ditekan
-    public void MobileJump()
-    {
-        if (isGrounded())
-        {
-            Jump();
-        }
-    }
-
-    // Buat fungsi baru untuk melakukan serangan
-    private void PerformAttack()
-    {
-        // Cek kondisi lain jika perlu (misalnya, tidak bisa attack saat sedang apa)
-        anim.SetTrigger("Attack1Trigger"); // Mengaktifkan trigger di Animator
-        Debug.Log("Attack performed!"); // Untuk testing
-    }
-
-    // Fungsi baru untuk menangani interaksi
-    private void PerformInteraction()
-    {
-        if (currentInteractable != null)
-        {
-            ManuscriptItem manuscript = currentInteractable.GetComponent<ManuscriptItem>(); // Ambil komponen ManuscriptItem
-
-            if (manuscript != null && !manuscript.isCollected) // Pastikan ada scriptnya dan belum dikoleksi
-            {
-                Debug.Log("Mengambil manuskrip: " + currentInteractable.name + " | Isi: " + manuscript.ayatContent);
-
-                if (questManager != null)
-                {
-                    questManager.DisplayAyatContent(manuscript.ayatContent); // Suruh QuestManager tampilkan konten
-                    // Tandai sudah dikoleksi (opsional, tergantung bagaimana kamu mau menangani jika pemain berinteraksi lagi)
-                    // manuscript.isCollected = true; 
-                    questManager.ManuscriptCollected(); // Baru kemudian update progres quest
-                }
-                else
-                {
-                    Debug.LogWarning("QuestManager belum di-assign di PlayerMovement!");
-                }
-
-                // Hancurkan objek manuskrip setelah kontennya ditampilkan dan progres diupdate
-                // Atau bisa juga currentInteractable.SetActive(false); jika tidak mau dihancurkan total
-                Destroy(currentInteractable);
-                currentInteractable = null; // Kosongkan referensi
-            }
-            else if (manuscript != null && manuscript.isCollected)
-            {
-                Debug.Log("Manuskrip ini sudah pernah diambil.");
-            }
-            else
-            {
-                Debug.LogError("Objek interaksi tidak memiliki script ManuscriptItem!");
-            }
-        }
-        else
-        {
-            Debug.Log("Tidak ada objek untuk berinteraksi di dekat pemain.");
-        }
-    }
-
-    // Mendeteksi ketika pemain masuk ke area trigger objek lain
-    private void OnTriggerEnter2D(Collider2D other)
-    {
-        if (other.CompareTag("Manuscript"))
-        {
-            Debug.Log("Dekat dengan manuskrip: " + other.name);
-            currentInteractable = other.gameObject;
-        }
-    }
-
-
-    // Mendeteksi ketika pemain keluar dari area trigger objek lain
-    private void OnTriggerExit2D(Collider2D other)
-    {
-        if (other.gameObject == currentInteractable)
-        {
-            Debug.Log("Menjauh dari manuskrip: " + other.name);
-            currentInteractable = null;
-        }
-    }
-
 
     private void HandleContextualAction()
     {
-        // Cek apakah ada objek yang bisa diinteraksi di dekat pemain
         if (currentInteractable != null)
         {
-            // Jika ada, coba berinteraksi sebagai manuskrip
-            ManuscriptItem manuscript = currentInteractable.GetComponent<ManuscriptItem>();
-            if (manuscript != null && !manuscript.isCollected)
+            if (questManager == null) questManager = FindObjectOfType<QuestManager>();
+            if (questManager == null) { Debug.LogError("QuestManager tidak ditemukan!"); return; }
+
+            string itemTag = currentInteractable.tag;
+
+            if (itemTag == "Manuscript" || itemTag == "KunciBatu")
             {
-                Debug.Log("INTERAKSI: Mengambil manuskrip - " + currentInteractable.name);
-                if (questManager != null)
+                if (itemTag == "Manuscript")
                 {
-                    questManager.DisplayAyatContent(manuscript.ayatContent);
-                    questManager.ManuscriptCollected(); // Panggil setelah menampilkan konten atau sebelumnya, sesuai alur
+                    ManuscriptItem manuscript = currentInteractable.GetComponent<ManuscriptItem>();
+                    if (manuscript != null)
+                    {
+                        questManager.DisplayAyatContent(manuscript.ayatContent);
+                    }
                 }
-                else
-                {
-                    Debug.LogWarning("QuestManager belum di-assign di PlayerMovement!");
-                }
-                Destroy(currentInteractable); // Hancurkan manuskrip setelah diambil
-                currentInteractable = null;   // Kosongkan referensi
-            }
-            else if (manuscript != null && manuscript.isCollected)
-            {
-                Debug.Log("INTERAKSI: Manuskrip ini (" + currentInteractable.name + ") sudah pernah diambil.");
-                // Mungkin tidak melakukan apa-apa, atau beri feedback lain
-            }
-            else
-            {
-                // Jika currentInteractable bukan manuskrip atau script ManuscriptItem tidak ada
-                Debug.LogWarning("INTERAKSI: Objek " + currentInteractable.name + " bukan manuskrip yang valid atau scriptnya hilang.");
+                
+                questManager.AnItemWasCollected(itemTag);
+                Destroy(currentInteractable);
+                currentInteractable = null;
             }
         }
-        else
+        else // Jika tidak ada objek interaktif, lakukan serangan
         {
-            // Jika TIDAK ada objek untuk diinteraksi, lakukan serangan
-            Debug.Log("SERANGAN: Tidak ada interaksi, melakukan serangan!");
-            if (anim != null) // Pastikan Animator ada
-            {
-                anim.SetTrigger("Attack1Trigger"); // Memicu animasi serangan pemain
-                                                // Damage aktual akan diberikan oleh ExecuteAttackDamage() via Animation Event
-            }
-            else
-            {
-                Debug.LogError("Animator belum di-assign atau tidak ada di Player!");
-            }
+            if (anim != null) anim.SetTrigger("Attack1Trigger");
         }
     }
-
-
+    
     public void ExecuteAttackDamage()
     {
-        if (attackPoint == null)
-        {
-            Debug.LogError("AttackPoint belum di-assign di PlayerMovement!");
-            return;
-        }
-        Debug.Log("Player Attack Damage Check at frame!");
+        if (attackPoint == null) { Debug.LogError("AttackPoint belum di-assign!"); return; }
+        
         Collider2D[] hitEnemies = Physics2D.OverlapCircleAll(attackPoint.position, attackRange, enemyLayers);
         foreach (Collider2D enemyCollider in hitEnemies)
         {
-            Debug.Log("Hit: " + enemyCollider.name);
             Enemy enemy = enemyCollider.GetComponent<Enemy>();
             if (enemy != null)
             {
@@ -336,15 +183,49 @@ public class PlayerMovement : MonoBehaviour
         }
     }
 
+    private void Jump()
+    {
+        if (isGrounded())
+        {
+            rb.velocity = new Vector2(rb.velocity.x, jumpForce);
+        }
+    }
 
-    // (Opsional) Untuk visualisasi jangkauan serangan di Editor (tidak terlihat di game)
+    private bool isGrounded()
+    {
+        return Physics2D.BoxCast(coll.bounds.center, coll.bounds.size, 0f, Vector2.down, 0.1f, jumpableGround);
+    }
+
+    // --- Trigger Interaksi ---
+    private void OnTriggerEnter2D(Collider2D other)
+    {
+        if (other.CompareTag("Manuscript") || other.CompareTag("KunciBatu"))
+        {
+            currentInteractable = other.gameObject;
+        }
+    }
+
+    private void OnTriggerExit2D(Collider2D other)
+    {
+        if (other.gameObject == currentInteractable)
+        {
+            currentInteractable = null;
+        }
+    }
+
+    // --- Public Methods untuk Tombol UI Mobile ---
+    public void Move(float direction)
+    {
+        Debug.Log("LOG A: Move() dipanggil, direction = " + direction);
+        mobileInputX = direction;
+    }
+    public void MobileJump() => Jump();
+    public void PerformMobileContextualAction() => HandleContextualAction();
+    
     void OnDrawGizmosSelected()
     {
-        if (attackPoint == null)
-            return;
-
+        if (attackPoint == null) return;
         Gizmos.color = Color.red;
         Gizmos.DrawWireSphere(attackPoint.position, attackRange);
     }
-
 }

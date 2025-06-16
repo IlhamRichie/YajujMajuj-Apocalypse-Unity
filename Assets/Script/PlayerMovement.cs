@@ -1,9 +1,6 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-// Tidak perlu 'using System.Collections.Generic;' jika tidak digunakan
-// Tidak perlu 'using System.Collections;' jika tidak ada Coroutine di sini
-
 public class PlayerMovement : MonoBehaviour
 {
     [Header("Player Movement")]
@@ -23,13 +20,13 @@ public class PlayerMovement : MonoBehaviour
     [Header("Quest Interaction")]
     public QuestManager questManager;
 
-    // Komponen & Variabel Internal
+    // --- PERUBAHAN VARIABEL INPUT ---
     private Rigidbody2D rb;
     private Animator anim;
     private BoxCollider2D coll;
     private PlayerController playerController;
-    private Vector2 moveInput;
-    private float mobileInputX = 0f;
+    private Vector2 keyboardMoveInput; // Variabel khusus untuk input keyboard/gamepad
+    private float mobileInputX = 0f;   // Variabel khusus untuk input tombol UI
     private GameObject currentInteractable = null;
 
     private enum MovementState { idle, walk, run, jump, fall }
@@ -45,8 +42,6 @@ public class PlayerMovement : MonoBehaviour
     private void OnEnable()
     {
         playerController.Enable();
-
-        // Subscribe ke semua event input
         playerController.Movement.Move.performed += OnMoveInput;
         playerController.Movement.Move.canceled += OnMoveInput;
         playerController.Movement.Jump.performed += OnJumpPerformed;
@@ -56,66 +51,64 @@ public class PlayerMovement : MonoBehaviour
     private void OnDisable()
     {
         playerController.Disable();
-
-        // Unsubscribe dari semua event
         playerController.Movement.Move.performed -= OnMoveInput;
         playerController.Movement.Move.canceled -= OnMoveInput;
         playerController.Movement.Jump.performed -= OnJumpPerformed;
         playerController.Movement.Interact.performed -= OnInteractPerformed;
     }
 
-    // --- Event Handler Functions ---
+    // --- FUNGSI INPUT INI SEKARANG SANGAT SEDERHANA ---
     private void OnMoveInput(InputAction.CallbackContext context)
     {
-        // Hanya proses input ini jika BUKAN dari platform mobile atau remote
-        // Ini untuk mencegah keyboard menimpa input tombol UI saat testing
-        if (!(Application.isMobilePlatform || UnityEditor.EditorApplication.isRemoteConnected))
-        {
-            moveInput = context.ReadValue<Vector2>();
-        }
+        // Fungsi ini HANYA mengisi variabel untuk keyboard/gamepad
+        keyboardMoveInput = context.ReadValue<Vector2>();
     }
 
     private void OnJumpPerformed(InputAction.CallbackContext context) => Jump();
     private void OnInteractPerformed(InputAction.CallbackContext context) => HandleContextualAction();
     
-    private void Update()
-    {
-        // Hanya proses input mobile jika DI platform mobile atau remote
-        if (Application.isMobilePlatform || UnityEditor.EditorApplication.isRemoteConnected)
-        {
-            // Set moveInput.x dari variabel yang diubah oleh tombol UI
-            moveInput.x = mobileInputX;
-        }
-    }
+    // Fungsi Update sekarang tidak perlu mengurus input gerakan
+    private void Update() { }
 
+    // --- LOGIKA UTAMA PINDAH KE SINI ---
     private void FixedUpdate()
     {
-        float currentSpeed = moveSpeed;
-        Vector2 newVelocity = new Vector2(moveInput.x * currentSpeed, rb.velocity.y);
-        rb.velocity = newVelocity;
+        // 1. Tentukan input horizontal yang akan dipakai
+        float horizontalInput;
 
-        // Hanya log jika ada input untuk menghindari spam
-        if (moveInput.x != 0)
+        if (mobileInputX != 0)
         {
-            Debug.Log("LOG C: FixedUpdate() mengatur velocity.x menjadi = " + newVelocity.x);
+            // PRIORITAS 1: Jika tombol mobile sedang ditekan, gunakan nilainya.
+            horizontalInput = mobileInputX;
+        }
+        else
+        {
+            // PRIORITAS 2: Jika tidak, gunakan nilai dari keyboard/gamepad.
+            horizontalInput = keyboardMoveInput.x;
         }
 
-        UpdateAnimationAndFlip();
+        // 2. Terapkan gerakan menggunakan input yang sudah terpilih
+        float currentSpeed = moveSpeed;
+        rb.velocity = new Vector2(horizontalInput * currentSpeed, rb.velocity.y);
+
+        // 3. Panggil update animasi dengan input yang sudah terpilih
+        UpdateAnimationAndFlip(horizontalInput);
     }
 
-    private void UpdateAnimationAndFlip()
+    // --- FUNGSI INI SEKARANG MENERIMA PARAMETER ---
+    private void UpdateAnimationAndFlip(float horizontalInput)
     {
-        // Logika Flip menggunakan transform.localScale
-        if (moveInput.x > 0.01f)
+        // Logika Flip berdasarkan input final
+        if (horizontalInput > 0.01f)
         {
             transform.localScale = new Vector3(Mathf.Abs(transform.localScale.x), transform.localScale.y, transform.localScale.z);
         }
-        else if (moveInput.x < -0.01f)
+        else if (horizontalInput < -0.01f)
         {
             transform.localScale = new Vector3(-Mathf.Abs(transform.localScale.x), transform.localScale.y, transform.localScale.z);
         }
 
-        // Logika state animasi
+        // Logika state animasi berdasarkan input final
         MovementState state;
         if (rb.velocity.y > 0.1f)
         {
@@ -125,7 +118,7 @@ public class PlayerMovement : MonoBehaviour
         {
             state = MovementState.fall;
         }
-        else if (Mathf.Abs(moveInput.x) > 0.01f)
+        else if (Mathf.Abs(horizontalInput) > 0.01f)
         {
             state = MovementState.walk;
         }
@@ -133,10 +126,19 @@ public class PlayerMovement : MonoBehaviour
         {
             state = MovementState.idle;
         }
-
         if (anim != null) anim.SetInteger("state", (int)state);
     }
+    
+    // --- Public Methods untuk Tombol UI Mobile (TIDAK PERLU DIUBAH) ---
+    public void Move(float direction)
+    {
+        mobileInputX = direction;
+    }
+    public void MobileJump() => Jump();
+    public void PerformMobileContextualAction() => HandleContextualAction();
 
+    // Sisa fungsi lain (HandleContextualAction, Jump, isGrounded, dll.) tetap sama
+    // ... (salin sisa fungsi lain dari script lama-mu ke sini jika perlu) ...
     private void HandleContextualAction()
     {
         if (currentInteractable != null)
@@ -162,7 +164,7 @@ public class PlayerMovement : MonoBehaviour
                 currentInteractable = null;
             }
         }
-        else // Jika tidak ada objek interaktif, lakukan serangan
+        else
         {
             if (anim != null) anim.SetTrigger("Attack1Trigger");
         }
@@ -196,7 +198,6 @@ public class PlayerMovement : MonoBehaviour
         return Physics2D.BoxCast(coll.bounds.center, coll.bounds.size, 0f, Vector2.down, 0.1f, jumpableGround);
     }
 
-    // --- Trigger Interaksi ---
     private void OnTriggerEnter2D(Collider2D other)
     {
         if (other.CompareTag("Manuscript") || other.CompareTag("KunciBatu"))
@@ -212,15 +213,6 @@ public class PlayerMovement : MonoBehaviour
             currentInteractable = null;
         }
     }
-
-    // --- Public Methods untuk Tombol UI Mobile ---
-    public void Move(float direction)
-    {
-        Debug.Log("LOG A: Move() dipanggil, direction = " + direction);
-        mobileInputX = direction;
-    }
-    public void MobileJump() => Jump();
-    public void PerformMobileContextualAction() => HandleContextualAction();
     
     void OnDrawGizmosSelected()
     {

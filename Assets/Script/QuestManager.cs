@@ -23,7 +23,6 @@ public class QuestManager : MonoBehaviour
     public int totalEnemiesToKill = 5;
     private int enemiesKilled = 0;
 
-    // Variabel internal
     private bool isQuestComplete = false;
 
     [Header("UI Elements")]
@@ -48,22 +47,18 @@ public class QuestManager : MonoBehaviour
         UpdateQuestProgressUI();
     }
 
-    // Fungsi ini dipanggil oleh PlayerMovement saat item diambil
+    // Fungsi utama yang dipanggil oleh PlayerMovement saat item diambil
     public void AnItemWasCollected(string collectedItemTag)
     {
         if (isQuestComplete) return;
 
-        // Cek apakah tag item yang dikoleksi cocok dengan item primer
         if (collectedItemTag == primaryItemTag)
         {
             primaryItemsCollected++;
-            Debug.Log("QuestManager: Item Primer (" + primaryItemName + ") dikumpulkan! Total: " + primaryItemsCollected);
         }
-        // Cek apakah quest butuh item sekunder DAN tag-nya cocok
         else if (requireSecondaryItem && collectedItemTag == secondaryItemTag)
         {
             secondaryItemsCollected++;
-            Debug.Log("QuestManager: Item Sekunder (" + secondaryItemName + ") dikumpulkan! Total: " + secondaryItemsCollected);
         }
 
         UpdateQuestProgressUI();
@@ -100,12 +95,10 @@ public class QuestManager : MonoBehaviour
         {
             string fullText = "";
             fullText += primaryItemName + " Ditemukan: " + primaryItemsCollected + " / " + totalPrimaryItemsToFind;
-
             if (requireSecondaryItem)
             {
                 fullText += "\n" + secondaryItemName + " Ditemukan: " + secondaryItemsCollected + " / " + totalSecondaryItemsToFind;
             }
-
             if (requireEnemyKills)
             {
                 fullText += "\n" + "Musuh Dikalahkan: " + enemiesKilled + " / " + totalEnemiesToKill;
@@ -113,8 +106,6 @@ public class QuestManager : MonoBehaviour
             questProgressText.text = fullText;
         }
     }
-    
-    // --- Sisa fungsi di bawah ini sudah benar ---
 
     public void DisplayAyatContent(string ayat)
     {
@@ -131,16 +122,8 @@ public class QuestManager : MonoBehaviour
         if (manuscriptDisplayPanel != null)
         {
             manuscriptDisplayPanel.SetActive(false);
-            
-            // Logika baru: Jika quest sudah selesai, jangan aktifkan player,
-            // karena popup "Selamat" akan muncul dan menjaga player tetap diam.
-            if (isQuestComplete)
+            if (!isQuestComplete)
             {
-                // Tidak melakukan apa-apa, CompleteQuest() sudah menangani state player.
-            }
-            else
-            {
-                // Jika quest belum selesai, kembalikan kontrol ke player.
                 if (playerMovement != null) playerMovement.enabled = true;
             }
         }
@@ -148,7 +131,6 @@ public class QuestManager : MonoBehaviour
 
     void CompleteQuest()
     {
-        Debug.Log("QUEST SELESAI! Menampilkan popup...");
         if (playerMovement != null) playerMovement.enabled = false;
         if (questCompletePopup != null)
         {
@@ -170,16 +152,12 @@ public class QuestManager : MonoBehaviour
     {
         if (playerMovement != null) playerMovement.enabled = false;
         if (questProgressText != null) questProgressText.text = "Gerbang kuno bergetar...";
-
         if (vcamForGate != null) vcamForGate.SetActive(true);
         yield return new WaitForSeconds(2.0f);
-
         if (gateController != null) gateController.OpenGate();
         yield return new WaitForSeconds(2.0f);
-
         if (vcamForGate != null) vcamForGate.SetActive(false);
         yield return new WaitForSeconds(2.0f);
-
         if (questProgressText != null) questProgressText.text = "Gerbang telah terbuka! Masuklah...";
         if (playerMovement != null) playerMovement.enabled = true;
     }
@@ -190,7 +168,6 @@ public class QuestManager : MonoBehaviour
         {
             bool isActive = questProgressPopup.activeSelf;
             questProgressPopup.SetActive(!isActive);
-
             if (playerMovement != null)
             {
                 playerMovement.enabled = isActive;

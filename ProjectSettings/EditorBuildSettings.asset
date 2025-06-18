@@ -15,13 +15,13 @@ EditorBuildSettings:
     path: Assets/Scenes/MainMenu.unity
     guid: c2106b24f0504b8489ef26d134608ee4
   - enabled: 1
-    path: Assets/Scenes/SplashScene.unity
+    path: Assets/Scenes/LoadingScene.unity
     guid: 97e6df55c54878e4ba7df63342855490
   - enabled: 1
     path: Assets/Scenes/Win.unity
     guid: 266a5feda3245b148b751ee0f5488e28
   - enabled: 1
-    path: Assets/Scenes/Loading.unity
+    path: Assets/Scenes/Splash.unity
     guid: 2be2dbd50d2d17d4c80d44d9ab139fcb
   - enabled: 1
     path: Assets/Scenes/ChooseLv.unity
@@ -30,9 +30,9 @@ EditorBuildSettings:
     path: Assets/Scenes/Level Dua.unity
     guid: f13a97074ab0233478f1f5ab36ff01f8
   - enabled: 1
-    path: Assets/Scenes/Pause.unity
-    guid: 7c185c79752363a4eabd0e1bce96ded8
-  - enabled: 1
-    path: Assets/Scenes/Tutorial.unity
+    path: Assets/Scenes/TutorialScene.unity
     guid: 94243e8006ba278419cad631ad87ea64
+  - enabled: 1
+    path: Assets/Scenes/CreditScene.unity
+    guid: c4c9dd2457d415a4990e6ad091c18e89
   m_configObjects: {}

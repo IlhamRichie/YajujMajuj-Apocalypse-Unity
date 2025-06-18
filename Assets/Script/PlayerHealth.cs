@@ -155,6 +155,6 @@ public class PlayerHealth : MonoBehaviour
 
         // 4. Muat Scene "Lose"
         Debug.Log("Memuat Scene Lose: " + loseSceneName);
-        SceneManager.LoadScene(loseSceneName);
+        SceneLoader.Instance.LoadSceneWithLoadingScreen(loseSceneName);
     }
 }

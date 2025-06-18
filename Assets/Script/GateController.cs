@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.SceneManagement; // Penting untuk pindah scene!
 
+
 public class GateController : MonoBehaviour
 {
     [Header("Sprite Gerbang")]
@@ -50,13 +51,13 @@ public class GateController : MonoBehaviour
     // Fungsi ini berjalan saat ada objek lain yang masuk ke area trigger gerbang
     private void OnTriggerEnter2D(Collider2D other)
     {
-        // Cek apakah gerbang sudah terbuka DAN yang masuk adalah pemain
         if (isOpen && other.CompareTag("Player"))
         {
-            Debug.Log("Pemain memasuki gerbang. Memuat " + nextLevelSceneName + "...");
+            // GANTI NAMA FUNGSI INI:
+            // LoadingBarController.LoadScene(nextLevelSceneName);
 
-            // Muat scene level berikutnya
-            SceneManager.LoadScene(nextLevelSceneName);
+            // MENJADI NAMA YANG BENAR:
+            SceneLoader.Instance.LoadSceneWithLoadingScreen(nextLevelSceneName);
         }
     }
 }

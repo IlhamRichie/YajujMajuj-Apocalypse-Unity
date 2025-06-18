@@ -2,6 +2,7 @@ using UnityEngine;
 using TMPro;
 using UnityEngine.SceneManagement;
 using System.Collections;
+using Cinemachine; // <--- TAMBAHKAN BARIS INI
 
 public class QuestManager : MonoBehaviour
 {
@@ -150,14 +151,62 @@ public class QuestManager : MonoBehaviour
 
     IEnumerator GateOpenSequence()
     {
+        // --- TAHAP 1: PERSIAPAN ---
         if (playerMovement != null) playerMovement.enabled = false;
         if (questProgressText != null) questProgressText.text = "Gerbang kuno bergetar...";
-        if (vcamForGate != null) vcamForGate.SetActive(true);
-        yield return new WaitForSeconds(2.0f);
-        if (gateController != null) gateController.OpenGate();
-        yield return new WaitForSeconds(2.0f);
-        if (vcamForGate != null) vcamForGate.SetActive(false);
-        yield return new WaitForSeconds(2.0f);
+
+        // Ambil index level saat ini dari SceneManager
+        int thisLevelIndex = SceneManager.GetActiveScene().buildIndex;
+
+        CinemachineBrain cinemachineBrain = Camera.main.GetComponent<CinemachineBrain>();
+        if (cinemachineBrain == null)
+        {
+            Debug.LogError("CinemachineBrain tidak ditemukan di Main Camera. Cinematic dibatalkan.");
+            if (gateController != null) gateController.OpenGate();
+            if (playerMovement != null) playerMovement.enabled = true;
+            yield break;
+        }
+
+        // --- TAHAP 2: KAMERA FOKUS KE GERBANG ---
+        if (vcamForGate != null)
+        {
+            vcamForGate.SetActive(true);
+        }
+        yield return null; 
+        yield return new WaitWhile(() => cinemachineBrain.IsBlending);
+        Debug.Log("Transisi kamera ke gerbang selesai.");
+
+        // --- TAHAP 3: GERBANG TERBUKA & JEDA DRAMATIS ---
+        if (gateController != null)
+        {
+            gateController.OpenGate();
+        }
+        yield return new WaitForSeconds(2.5f);
+
+        // --- TAHAP 4: SIMPAN PROGRES PERMAINAN (LOGIKA BARU) ---
+        Debug.Log("Menyimpan progres level...");
+        int levelReached = PlayerPrefs.GetInt("LevelReached", 1);
+        
+        // Cek apakah level yang baru selesai ini lebih tinggi dari progres yang tersimpan
+        if (thisLevelIndex >= levelReached)
+        {
+            // Buka akses ke level berikutnya
+            int nextLevel = thisLevelIndex + 1;
+            PlayerPrefs.SetInt("LevelReached", nextLevel);
+            PlayerPrefs.Save(); // Simpan perubahan ke perangkat
+            Debug.Log("Level " + nextLevel + " unlocked!");
+        }
+
+        // --- TAHAP 5: KAMERA KEMBALI KE PEMAIN ---
+        if (vcamForGate != null)
+        {
+            vcamForGate.SetActive(false);
+        }
+        yield return null;
+        yield return new WaitWhile(() => cinemachineBrain.IsBlending);
+        Debug.Log("Transisi kamera kembali ke pemain selesai.");
+
+        // --- TAHAP 6: FINALISASI ---
         if (questProgressText != null) questProgressText.text = "Gerbang telah terbuka! Masuklah...";
         if (playerMovement != null) playerMovement.enabled = true;
     }

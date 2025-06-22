@@ -320,6 +320,14 @@ public class Enemy : MonoBehaviour
             enemyHealthBarFill.fillAmount = (float)currentHealth / maxHealth;
         }
 
+        // --- TAMBAHAN UNTUK UPDATE UI BOSS ---
+        BossBattleManager battleManager = FindObjectOfType<BossBattleManager>();
+        if (battleManager != null)
+        {
+            // Lapor ke manager untuk update UI health bar-nya
+            battleManager.UpdateBossHealthBar(currentHealth, maxHealth);
+        }
+
         if (currentHealth <= 0)
         {
             Die();

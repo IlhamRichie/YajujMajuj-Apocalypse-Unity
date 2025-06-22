@@ -6,6 +6,9 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
+    path: Assets/Scenes/Splash.unity
+    guid: 2be2dbd50d2d17d4c80d44d9ab139fcb
+  - enabled: 1
     path: Assets/Scenes/LevelSatu.unity
     guid: 2cda990e2423bbf4892e6590ba056729
   - enabled: 1
@@ -21,9 +24,6 @@ EditorBuildSettings:
     path: Assets/Scenes/Win.unity
     guid: 266a5feda3245b148b751ee0f5488e28
   - enabled: 1
-    path: Assets/Scenes/Splash.unity
-    guid: 2be2dbd50d2d17d4c80d44d9ab139fcb
-  - enabled: 1
     path: Assets/Scenes/ChooseLv.unity
     guid: 392dc2f0b617f574eb6679d2b0c33d82
   - enabled: 1
@@ -35,4 +35,7 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/CreditScene.unity
     guid: c4c9dd2457d415a4990e6ad091c18e89
+  - enabled: 1
+    path: Assets/Scenes/Level3_Boss.unity
+    guid: 779cded5962d3bf4187ba0ce8043ee66
   m_configObjects: {}

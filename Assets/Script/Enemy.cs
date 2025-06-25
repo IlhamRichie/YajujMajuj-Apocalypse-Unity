@@ -9,6 +9,7 @@ public class Enemy : MonoBehaviour
     public Image enemyHealthBarFill;
 
     [Header("Stats")]
+    public bool isBoss = false;
     public int maxHealth = 3;
     private int currentHealth;
 
@@ -311,30 +312,32 @@ public class Enemy : MonoBehaviour
     public void TakeDamage(int damageAmount)
     {
         currentHealth -= damageAmount;
-        currentHealth = Mathf.Max(currentHealth, 0); // Pastikan tidak minus
-        Debug.Log(gameObject.name + " terkena damage: " + damageAmount + ", Sisa health: " + currentHealth);
+        currentHealth = Mathf.Max(currentHealth, 0);
 
-        // Update UI health bar
-        if (enemyHealthBarFill != null)
+        // --- LOGIKA BARU UNTUK MEMBEDAKAN UI ---
+        if (isBoss)
         {
-            enemyHealthBarFill.fillAmount = (float)currentHealth / maxHealth;
+            // JIKA INI ADALAH BOSS: Update UI health bar utama di layar
+            BossBattleManager battleManager = FindObjectOfType<BossBattleManager>();
+            if (battleManager != null)
+            {
+                battleManager.UpdateBossHealthBar(currentHealth, maxHealth);
+            }
         }
-
-        // --- TAMBAHAN UNTUK UPDATE UI BOSS ---
-        BossBattleManager battleManager = FindObjectOfType<BossBattleManager>();
-        if (battleManager != null)
+        else
         {
-            // Lapor ke manager untuk update UI health bar-nya
-            battleManager.UpdateBossHealthBar(currentHealth, maxHealth);
+            // JIKA INI MUSUH BIASA: Update health bar kecil di atas kepalanya sendiri
+            if (enemyHealthBarFill != null)
+            {
+                enemyHealthBarFill.fillAmount = (float)currentHealth / maxHealth;
+            }
         }
+        // -----------------------------------------
 
         if (currentHealth <= 0)
         {
             Die();
         }
-        // else {
-        //     TriggerAnimation("Hurt");
-        // }
     }
 
     void Die()

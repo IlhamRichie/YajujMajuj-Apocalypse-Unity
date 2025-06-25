@@ -20,6 +20,12 @@ public class PlayerMovement : MonoBehaviour
     [Header("Quest Interaction")]
     public QuestManager questManager;
 
+    [Header("Sound Effects")]
+    public AudioSource sfxAudioSource; // Assign komponen AudioSource Player ke sini
+    public AudioClip attackHitSFX;
+
+    public AudioClip collectItemSFX; // Assign file audio "collect" ke sini
+
     // --- PERUBAHAN VARIABEL INPUT ---
     private Rigidbody2D rb;
     private Animator anim;
@@ -37,6 +43,11 @@ public class PlayerMovement : MonoBehaviour
         anim = GetComponent<Animator>();
         coll = GetComponent<BoxCollider2D>();
         playerController = new PlayerController();
+
+        if (sfxAudioSource == null)
+        {
+            sfxAudioSource = GetComponent<AudioSource>();
+        }
     }
 
     private void OnEnable()
@@ -158,6 +169,11 @@ public class PlayerMovement : MonoBehaviour
                         questManager.DisplayAyatContent(manuscript.ayatContent);
                     }
                 }
+
+                if (sfxAudioSource != null && collectItemSFX != null)
+                {
+                    sfxAudioSource.PlayOneShot(collectItemSFX);
+                }
                 
                 questManager.AnItemWasCollected(itemTag);
                 Destroy(currentInteractable);
@@ -172,14 +188,29 @@ public class PlayerMovement : MonoBehaviour
     
     public void ExecuteAttackDamage()
     {
-        if (attackPoint == null) { Debug.LogError("AttackPoint belum di-assign!"); return; }
-        
+        if (attackPoint == null) { return; }
+
         Collider2D[] hitEnemies = Physics2D.OverlapCircleAll(attackPoint.position, attackRange, enemyLayers);
+
+        // Variabel untuk memastikan suara hanya diputar sekali per ayunan, meskipun mengenai banyak musuh
+        bool hasHit = false; 
+
         foreach (Collider2D enemyCollider in hitEnemies)
         {
             Enemy enemy = enemyCollider.GetComponent<Enemy>();
             if (enemy != null)
             {
+                // Jika serangan mengenai musuh
+                if (!hasHit) // Cek apakah ini pukulan pertama di ayunan ini
+                {
+                    // --- MAINKAN SUARA HIT DI SINI ---
+                    if (sfxAudioSource != null && attackHitSFX != null)
+                    {
+                        sfxAudioSource.PlayOneShot(attackHitSFX);
+                    }
+                    hasHit = true; // Tandai sudah ada yang kena
+                }
+
                 enemy.TakeDamage(attackDamage);
             }
         }

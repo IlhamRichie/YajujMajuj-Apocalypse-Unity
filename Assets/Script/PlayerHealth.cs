@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.UI; // Tambahkan ini untuk mengakses komponen Image
 using TMPro;          // Tambahkan ini untuk mengakses TextMeshProUGUI
 using UnityEngine.SceneManagement; // Untuk SceneManager
-using System.Collections; 
+using System.Collections;
 
 public class PlayerHealth : MonoBehaviour
 {
@@ -63,11 +63,11 @@ public class PlayerHealth : MonoBehaviour
         {
             rb.velocity = Vector2.zero;       // 1. Hentikan semua sisa kecepatan.
             rb.isKinematic = true;            // 2. Ubah Rigidbody menjadi Kinematic. 
-                                            //    Ini akan membuatnya tidak lagi terpengaruh oleh gaya luar 
-                                            //    seperti gravitasi atau tabrakan. Ia hanya akan bergerak jika
-                                            //    kamu secara eksplisit mengubah transform.position-nya (misalnya oleh animasi).
-            // Alternatif lain jika tidak mau Kinematic (tapi Kinematic lebih umum untuk kasus ini):
-            // rb.gravityScale = 0f; 
+                                              //    Ini akan membuatnya tidak lagi terpengaruh oleh gaya luar 
+                                              //    seperti gravitasi atau tabrakan. Ia hanya akan bergerak jika
+                                              //    kamu secara eksplisit mengubah transform.position-nya (misalnya oleh animasi).
+                                              // Alternatif lain jika tidak mau Kinematic (tapi Kinematic lebih umum untuk kasus ini):
+                                              // rb.gravityScale = 0f; 
         }
         // --- AKHIR PERUBAHAN PENTING ---
 
@@ -76,7 +76,7 @@ public class PlayerHealth : MonoBehaviour
         {
             // Menonaktifkan collider setelah menjadi Kinematic biasanya aman dan baik
             // untuk mencegah interaksi fisik yang tidak diinginkan dengan "mayat" pemain.
-            playerCollider.enabled = false; 
+            playerCollider.enabled = false;
         }
 
         // Mulai sekuens kematian (animasi, zoom, pindah scene)
@@ -102,7 +102,7 @@ public class PlayerHealth : MonoBehaviour
         }
         else { Debug.LogWarning("PlayerHealth UI: healthText is null!"); }
     }
-    
+
     // Di dalam class PlayerHealth
     IEnumerator DeathSequenceCoroutine()
     {
@@ -156,5 +156,17 @@ public class PlayerHealth : MonoBehaviour
         // 4. Muat Scene "Lose"
         Debug.Log("Memuat Scene Lose: " + loseSceneName);
         SceneLoader.Instance.LoadSceneWithLoadingScreen(loseSceneName);
+    }
+
+    public void RestoreHealth(int amount)
+    {
+        // Tambahkan nyawa, tapi jangan sampai melebihi maksimal
+        currentHealth += amount;
+        currentHealth = Mathf.Min(currentHealth, maxHealth); // Batasi agar tidak lebih dari maxHealth
+
+        // Update UI health bar
+        UpdateHealthUI();
+
+        Debug.Log("Nyawa bertambah! HP sekarang: " + currentHealth);
     }
 }

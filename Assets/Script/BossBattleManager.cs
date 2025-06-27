@@ -9,6 +9,7 @@ public class BossBattleManager : MonoBehaviour
     [Header("Boss References")]
     public Enemy yajujBoss;
     public Enemy majujBoss;
+    public GameObject warningPopup;
 
     [Header("Battle Settings")]
     public float introDuration = 3f;
@@ -32,12 +33,25 @@ public class BossBattleManager : MonoBehaviour
 
     void Start()
     {
-        // Sembunyikan boss dan UI-nya di awal
-        yajujBoss.gameObject.SetActive(false);
-        majujBoss.gameObject.SetActive(false);
+        // Sembunyikan semua elemen yang tidak seharusnya muncul di awal
+        if (yajujBoss != null) yajujBoss.gameObject.SetActive(false);
+        if (majujBoss != null) majujBoss.gameObject.SetActive(false);
         if (bossHealthBarUI != null) bossHealthBarUI.SetActive(false);
+        if (victoryPopup != null) victoryPopup.SetActive(false);
 
-        StartCoroutine(BattleIntroSequence());
+        // Tampilkan panel peringatan
+        if (warningPopup != null)
+        {
+            warningPopup.SetActive(true);
+        }
+        else
+        {
+            // Jika tidak ada panel peringatan, langsung mulai pertarungan (fallback)
+            StartCoroutine(BattleIntroSequence());
+        }
+
+        // Jeda permainan agar pemain tidak bisa bergerak saat popup muncul
+        Time.timeScale = 0f;
     }
 
     IEnumerator BattleIntroSequence()
@@ -97,6 +111,21 @@ public class BossBattleManager : MonoBehaviour
         {
             StartCoroutine(VictorySequence());
         }
+    }
+
+    public void StartBossBattleFromPopup()
+    {
+        // Lanjutkan waktu permainan
+        Time.timeScale = 1f;
+
+        // Sembunyikan panel peringatan
+        if (warningPopup != null)
+        {
+            warningPopup.SetActive(false);
+        }
+
+        // Mulai coroutine intro pertarungan boss
+        StartCoroutine(BattleIntroSequence());
     }
 
     IEnumerator VictorySequence()
